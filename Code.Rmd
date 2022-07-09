@@ -1,0 +1,145 @@
+---
+title: "Stat 148 Project"
+author: "SUPER BAYES"
+date: "12/15/2021"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl) #Read Excel
+library(rstanarm) #Bayesian Modeling
+library(tidyverse)
+library(car)
+library(caret)#Confusion matrix and other statistics
+library(loo)
+library(projpred)
+
+```
+
+```{r}
+#Set working Directory
+getwd()
+setwd("D:/me/Documents/UPLB/1st Semester A.Y. 2021-2022/Stat 148/Project")
+
+#Import
+YAF.raw <- read_excel("YAFS4-ER_Final.xlsx")
+```
+
+```{r Reading, Viewing, and Summarizing Data}
+summary(YAF.raw)
+```
+
+## **Pre-processing**
+
+```{r}
+# preparing the inputs
+y <- YAF.raw$Contraceptive
+```
+
+
+```{r}
+#Convert the Categorical variables into a factor
+YAF.raw$Contraceptive  <- as.factor(YAF.raw$Contraceptive)
+YAF.raw$Mar_Stat <- as.factor(YAF.raw$Mar_Stat)
+YAF.raw$Educ<- as.factor(YAF.raw$Educ)
+YAF.raw$Pov_Stat <- as.factor(YAF.raw$Pov_Stat )
+```
+
+## **Model Building**
+
+```{r}
+#Bayesian Logistic Regression Model
+
+prior_dist <- student_t(df = 7, location = 0, scale = 2.5)
+bayes_mod  <- stan_glm(Contraceptive ~ Bar_Strat + Age + I_Age + Mar_Stat + Educ + Pov_Stat, data = YAF.raw,
+                  family = binomial(link = "logit"), 
+                  prior = prior_dist, prior_intercept = prior_dist,
+                  seed = 15689)
+bayes_mod
+```
+
+```{r}
+posterior_interval(bayes_mod, prob = 0.95)
+```
+
+```{r}
+summary(residuals(bayes_mod))
+```
+
+```{r}
+
+#We can extract corresponding posterior median estimates using ‘coef’ function and to get a sense for the uncertainty in our estimates we can use the posterior_interval function to get Bayesian uncertainty intervals. The uncertainty intervals are computed by finding the relevant quantiles of the draws from the posterior distribution. For example, to compute median and 90% intervals we use:
+
+round(coef(bayes_mod), 2)
+
+```
+
+```{r}
+round(posterior_interval(bayes_mod, prob = 0.9), 2)
+```
+
+
+## **Model Assessment**
+```{r}
+set.seed(15689)
+index <-  createDataPartition(YAF.raw$Contraceptive,p = 0.7,list = F)
+train <- YAF.raw[index,]
+test  <- YAF.raw[-index,]
+```
+
+
+## ***Leave-one-out cross-validation***
+```{r}
+
+#rstanarm supports loo package which implements fast Pareto smoothed leave-one-out cross-validation (PSIS-LOO) (Vehtari, Gelman and Gabry, 2017) to compute expected log predictive density (elpd):
+
+
+loo1 <- loo(bayes_mod, save_psis = TRUE)
+
+#Above we see that PSIS-LOO result is reliable as all Pareto k estimates are small (k< 0.5) (Vehtari, Gelman and Gabry, 2017; Vehtari et al., 2019).
+```
+
+```{r}
+
+#Confusion Matrix
+
+library(caret)
+prob <- predict(bayes_mod, newdata=test, type="response") 
+pred <- ifelse(prob > 0.5, "1", "0")
+
+
+#Confusion matrix and Statistics
+accuracy <- table(pred, test$Contraceptive)
+accuracy 
+
+sum(diag(accuracy))/sum(accuracy)
+
+```
+
+```{r}
+
+#Area under ROC
+
+library(ROCR)
+prob <- predict(bayes_mod , newdata=test , type="response")
+pred <- prediction(prob, test$Contraceptive)
+perf <- performance(pred, 'tpr', 'fpr')
+plot(perf)
+auc <- performance(pred, measure = "auc") #Area Under ROC 
+auc <- auc@y.values[[1]]
+auc
+```
+
+
+
+
+
+
+
+
+
