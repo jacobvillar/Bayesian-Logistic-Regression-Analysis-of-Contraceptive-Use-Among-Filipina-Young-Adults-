@@ -1,7 +1,6 @@
 # Bayesian-Logistic-Regression-Analysis-of-Contraceptive-Use-Among-Filipina-Young-Adults-
 
 ## **OBJECTIVES OF THE STUDY**
-
   The main objective of this study is to identify factors affecting the contraceptive use among young adults in the Philippines. Specifically, this study aims to:
   1. describe the distribution of contraceptive use among Filipina young adult characteristics,
   2. determine the association between contraceptive use and various socio-demographic characteristics of Filipina youth,
